@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- [UBAH DI SINI] Judul tab browser -->
+    <title>Buat Dwita</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Poppins:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #2e020f; 
+            color: white;
+            overflow: hidden;
+            touch-action: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .handwriting {
+            font-family: 'Caveat', cursive;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease-in-out;
+            z-index: 10;
+            --x: 50vw; 
+            --y: 50vh;
+            background: radial-gradient(circle at center, #4c0519 0%, #2e020f 100%);
+            touch-action: none;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 20;
+        }
+
+        /* STAGE 1: Flashlight Styles */
+        #flashlight-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #110005; 
+            z-index: 15;
+            pointer-events: none;
+            background: radial-gradient(circle 95px at var(--x) var(--y), rgba(255,200,210,0.15) 0%, rgba(255,150,180,0.05) 30%, transparent 60%, rgba(17,0,5,0.98) 100%);
+        }
+
+        #crosshair {
+            position: absolute;
+            top: var(--y);
+            left: var(--x);
+            transform: translate(-50%, -50%);
+            color: #fb7185; 
+            font-size: 2.5rem;
+            font-weight: 300;
+            line-height: 1;
+            z-index: 17;
+            pointer-events: none;
+            text-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
+            transition: transform 0.1s;
+        }
+
+        #radarIndicator {
+            position: absolute;
+            top: calc(var(--y) + 12px); 
+            left: var(--x);
+            transform: translateX(-50%);
+            color: #fda4af; 
+            font-size: 0.8rem; 
+            line-height: 1;
+            letter-spacing: 1px; 
+            z-index: 17;
+            pointer-events: none;
+            text-shadow: 0 0 5px rgba(251, 113, 133, 0.8);
+            transition: opacity 0.1s ease;
+            opacity: 0; 
+        }
+
+        .hidden-heart {
+            position: absolute;
+            width: 80px; 
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 14; 
+            transform: translate(-50%, -50%); 
+            pointer-events: none; 
+        }
+
+        .emoji-inner {
+            font-size: 1.5rem; 
+            transition: transform 0.1s, filter 0.3s;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+        }
+
+        .highlight-green .emoji-inner {
+            filter: drop-shadow(0 0 25px #fb7185) brightness(1.2) !important; 
+        }
+        .highlight-green {
+            z-index: 16; 
+        }
+
+        /* STAGE 2: Gift Box Styles */
+        .gift-container {
+            width: 100%;
+            max-width: 300px;
+            max-height: 42vh; 
+            overflow-y: auto;
+            padding: 10px;
+            scrollbar-width: none; 
+            -ms-overflow-style: none;  
+            -webkit-overflow-scrolling: touch; 
+            mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+        }
+        
+        .gift-container::-webkit-scrollbar { display: none; }
+
+        .gift-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            width: 100%;
+            padding-bottom: 5rem; 
+        }
+
+        .gift-box {
+            background: rgba(255, 228, 230, 0.15); 
+            border: 2px solid rgba(251, 113, 133, 0.4); 
+            border-radius: 1.2rem;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.2);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .gift-box:active { transform: scale(0.9); }
+
+        .gift-box.eliminated {
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: scale(0.85);
+            filter: grayscale(1) opacity(0.5);
+            pointer-events: none;
+            box-shadow: none;
+        }
+
+        .gift-box.final-prize {
+            background: rgba(225, 29, 72, 0.3); 
+            border-color: #fb7185;
+            animation: pulse-glow-romantic 1.5s infinite;
+        }
+
+        @keyframes pulse-glow-romantic {
+            0% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(251, 113, 133, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0); }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(20, 0, 5, 0.85); 
+            z-index: 100; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #4c0519; 
+            border: 2px solid #fb7185; 
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(225, 29, 72, 0.3);
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        .heart-badge {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Tombol Debug Rahasia */
+        #debugSkip {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 60px;
+            height: 60px;
+            z-index: 9999;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="debugSkip"></div>
+
+    <!-- STAGE 1: SENTER -->
+    <div id="stage1" class="screen active">
+        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 bg-rose-950/60 backdrop-blur-md px-4 py-2 rounded-full border border-rose-400/30 shadow-lg flex items-center gap-2 pointer-events-none">
+            <!-- [UBAH DI SINI] Teks indikator koleksi -->
+            <span class="text-[10px] text-rose-200 font-semibold tracking-wider">KOLEKSI:</span>
+            <div id="heartIndicator" class="flex gap-1 min-w-[60px] min-h-[24px] items-center justify-center"></div>
+        </div>
+
+        <div id="instruction" class="absolute top-12 w-full text-center z-20 text-rose-200 text-sm font-medium tracking-wide pointer-events-none px-4 drop-shadow-md transition-opacity duration-500 max-w-[85%] mx-auto left-0 right-0">
+            <!-- [UBAH DI SINI] Instruksi main senter -->
+            Drag tanda + ke hati, lalu tap secepatnya sebelum hatinya kabur! 🎯
+        </div>
+
+        <div id="catchWarning" class="absolute top-24 w-full text-center z-20 text-rose-400 font-bold text-lg tracking-wider pointer-events-none px-4 opacity-0 transition-opacity duration-200" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">
+            <!-- [UBAH DI SINI] Peringatan pas hati ketemu -->
+            Cepat Tap Layar!
+        </div>
+
+        <div id="flashlight-bg"></div>
+        <div id="crosshair">+</div>
+        <div id="radarIndicator"></div>
+        
+        <div class="hidden-heart" data-id="1" style="top: 0; left: 0;"><div class="emoji-inner">💖</div></div>
+        <div class="hidden-heart" data-id="2" style="top: 0; left: 0;"><div class="emoji-inner">💙</div></div>
+        <div class="hidden-heart" data-id="3" style="top: 0; left: 0;"><div class="emoji-inner">💛</div></div>
+    </div>
+
+    <!-- STAGE 2: ELIMINASI KADO -->
+    <div id="stage2" class="screen flex flex-col items-center justify-start pt-16 p-6 text-white relative">
+        <!-- [UBAH DI SINI] Judul Stage Eliminasi -->
+        <h2 id="stage2Title" class="text-3xl handwriting text-rose-300 mb-2 text-center drop-shadow-sm">Klik hadiah yg mau kamu buang</h2>
+        <!-- [UBAH DI SINI] Deskripsi Stage Eliminasi -->
+        <p id="stage2Desc" class="text-sm text-rose-100/80 mb-6 text-center max-w-xs font-light">
+            Pilih <span class="font-bold text-rose-300">5 kado</span> yg kamu ngga suka, yg tersisa bakal jadi milik kamu
+        </p>
+
+        <div class="gift-container" id="giftContainer">
+            <div class="gift-grid" id="giftGrid">
+                <div class="gift-box" data-index="0">🎁</div>
+                <div class="gift-box" data-index="1">🎁</div>
+                <div class="gift-box" data-index="2">🎁</div>
+                <div class="gift-box" data-index="3">🎁</div>
+                <div class="gift-box" data-index="4">🎁</div>
+                <div class="gift-box" data-index="5">🎁</div>
+            </div>
+        </div>
+        
+        <!-- [UBAH DI SINI] Teks hint scroll -->
+        <p id="scrollHint" class="text-xs text-rose-300/60 mt-4 animate-pulse transition-opacity duration-500 pointer-events-none">Geser ke bawah ⬇️</p>
+    </div>
+
+    <!-- STAGE 3: FINAL THANK YOU -->
+    <div id="stage3" class="screen flex flex-col items-center justify-center text-center p-6">
+        <div class="w-28 h-28 mb-8 rounded-full bg-rose-900/50 border-4 border-rose-400/30 flex items-center justify-center shadow-[0_0_40px_rgba(251,113,133,0.4)] backdrop-blur-sm">
+            <!-- [UBAH DI SINI] Emoji final di layar terakhir -->
+            <span class="text-6xl">👩‍❤️‍👨</span>
+        </div>
+        <!-- [UBAH DI SINI] Judul layar terakhir -->
+        <h1 class="text-5xl handwriting text-rose-300 mb-6 tracking-wide drop-shadow-md">Thank you udah bermain 😚.</h1>
+        <!-- [UBAH DI SINI] Pesan panjang di layar terakhir -->
+        <p class="text-lg text-rose-100/90 leading-relaxed max-w-sm font-light">
+            Nanti bakal aku bikinin lagi yg lebih surprize hehe<br><br>
+            peluk cium buat ayang aku 🥰<br><br>
+            <!-- [UBAH DI SINI] Kalimat penutup di layar terakhir -->
+            <span class="font-bold text-rose-200 text-2xl mt-4 inline-block drop-shadow-[0_0_10px_rgba(251,113,133,0.6)]">I love you! ❤️</span>
+        </p>
+    </div>
+
+    <!-- MODAL GOMBALAN STAGE 1 -->
+    <div id="gombalModal" class="modal-overlay px-4">
+        <div class="modal-content p-6 rounded-3xl w-full max-w-sm text-center relative">
+            <h3 class="text-5xl mb-4 drop-shadow-lg" id="modalEmoji">💖</h3>
+            <p class="text-rose-100 mb-8 handwriting text-3xl leading-relaxed" id="modalText"></p>
+            <!-- [UBAH DI SINI] Tombol tutup modal gombalan -->
+            <button id="closeModalBtn" class="px-8 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-full font-bold transition-colors active:scale-95 shadow-lg shadow-rose-500/30 w-full tracking-wide">
+                Lanjut
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL BERHASIL STAGE 1 -->
+    <div id="successModal" class="modal-overlay px-4">
+        <div class="modal-content p-8 rounded-3xl w-full max-w-sm text-center relative border-rose-400 bg-gradient-to-b from-rose-900 to-rose-950">
+            <!-- [UBAH DI SINI] Emoji sukses stage 1 -->
+            <h3 class="text-6xl mb-4 drop-shadow-lg">🎉</h3>
+            <!-- [UBAH DI SINI] Judul sukses stage 1 -->
+            <h2 class="text-3xl handwriting text-rose-200 mb-2">Ayang keren!</h2>
+            <!-- [UBAH DI SINI] Pesan sukses stage 1 -->
+            <p class="text-rose-100/80 mb-8 leading-relaxed font-light">Hatinya udah kekumpul semua nih, sekarang saatnya buka hadiah spesial buat kamu.</p>
+            <!-- [UBAH DI SINI] Tombol lanjut ke stage 2 -->
+            <button id="goToStage2Btn" class="px-8 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-full font-bold transition-colors active:scale-95 shadow-lg shadow-rose-500/30 w-full tracking-wide">
+                Buka Hadiah 👉
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL PRIZE (ELIMINASI KADO) STAGE 2 -->
+    <div id="prizeModal" class="modal-overlay px-4">
+        <div class="modal-content p-6 rounded-3xl w-full max-w-sm text-center relative" id="prizeModalContent">
+            <h3 class="text-5xl mb-4 drop-shadow-md" id="prizeEmoji">😱</h3>
+            <h2 class="text-2xl handwriting text-white mb-2" id="prizeTitle">Tereliminasi!</h2>
+            <p class="text-rose-100/80 mb-8 leading-relaxed text-sm font-light" id="prizeText"></p>
+            <!-- [UBAH DI SINI] Tombol tutup kado zonk -->
+            <button id="closePrizeBtn" class="px-8 py-3 bg-rose-500 text-white rounded-full font-bold transition-colors active:scale-95 shadow-lg w-full">
+                Coba Lagi
+            </button>
+        </div>
+    </div>
+
+    <!-- NEW MODAL: PELUK CIUM -->
+    <div id="hugModal" class="modal-overlay px-4">
+        <div class="modal-content p-8 rounded-3xl w-full max-w-sm text-center relative border-rose-400 bg-gradient-to-b from-rose-900 to-rose-950">
+            <!-- [UBAH DI SINI] Emoji peluk cium -->
+            <h3 class="text-5xl mb-6 drop-shadow-lg tracking-widest">🤗💋🤗💋</h3>
+            <!-- [UBAH DI SINI] Judul peluk cium -->
+            <h2 class="text-3xl handwriting text-rose-200 mb-4">Muachhh!</h2>
+            <!-- [UBAH DI SINI] Pesan peluk cium -->
+            <p class="text-rose-100/80 mb-8 leading-relaxed font-light">Ini peluk cium online spesial buat kamu. Diterima ya! hehehe</p>
+            <!-- [UBAH DI SINI] Tombol lanjut dari peluk cium -->
+            <button id="goToStage3Btn" class="px-8 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-full font-bold transition-colors active:scale-95 shadow-lg shadow-rose-500/30 w-full tracking-wide">
+                Lanjut 👉
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // [UBAH DI SINI] Kumpulan gombalan saat dapat hati di senter (Format: "1": { emoji: "...", text: "..." })
+        const gombalan = {
+            "1": { emoji: "💖", text: "Apa perbedaan kamu dan PKI? PKI itu terkenal komunis, kalau kamu kenapa bisa manis?" },
+            "2": { emoji: "💙", text: "Tahu perbedaan kamu dengan Borobudur, nggak? Kalau Borobudur itu candi, kalau kamu itu candu" },
+            "3": { emoji: "💛", text: "Tahu kenapa kopi rasanya pahit? Soalnya yang manis itu cuma senyum kamu" }
+        };
+
+        // [UBAH DI SINI] Kumpulan hadiah palsu (zonk) pas lagi pilih kado
+        const fakePrizes = [
+            { item: "iPhone 16 Pro Max 1TB", emoji: "📱", desc: "Padahal mau aku beliin cash loh ini... sayang banget kebuang." },
+            { item: "Tiket Liburan ke Maldives VIP", emoji: "🏝️", desc: "Gagal deh kita mantai berdua minum es kelapa di sana." },
+            { item: "Mobil Tesla Model 3", emoji: "🚗", desc: "Lanjuth... mobil autopilotnya hangus deh. Terpaksa naik motor lagi." },
+            { item: "Black Card Limit Unlimited", emoji: "💳", desc: "Wah parah, padahal kartu ini bisa buat borong seisi mall." },
+            { item: "Emas Batangan 100 Gram", emoji: "🥇", desc: "Lumayan buat investasi masa depan, tapi malah kamu buang." }
+        ];
+
+        let heartsFound = 0;
+        let currentStageIdx = 1;
+        let isModalOpen = false; 
+
+        // Update skip button logic
+        const debugBtn = document.getElementById('debugSkip');
+        debugBtn.addEventListener('click', () => {
+            currentStageIdx++;
+            if(currentStageIdx === 2) showStage('stage2');
+            else if(currentStageIdx >= 3) showStage('stage3');
+        });
+
+        function showStage(stageId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(stageId).classList.add('active');
+            
+            document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('show'));
+
+            if (stageId === 'stage2') {
+                currentStageIdx = 2;
+                initStage2();
+            }
+            if (stageId === 'stage3') {
+                currentStageIdx = 3;
+            }
+        }
+
+        // ==========================================
+        // STAGE 1: FLASHLIGHT GAME
+        // ==========================================
+        function initStage1() {
+            const stage1 = document.getElementById('stage1');
+            const heartsElements = document.querySelectorAll('.hidden-heart');
+            const modal = document.getElementById('gombalModal');
+            const modalText = document.getElementById('modalText');
+            const modalEmoji = document.getElementById('modalEmoji');
+            const closeBtn = document.getElementById('closeModalBtn');
+            const instruction = document.getElementById('instruction');
+            const catchWarning = document.getElementById('catchWarning');
+            const indicator = document.getElementById('heartIndicator');
+            const crosshair = document.getElementById('crosshair'); 
+            const radarIndicator = document.getElementById('radarIndicator'); 
+            const successModal = document.getElementById('successModal');
+            const goToStage2Btn = document.getElementById('goToStage2Btn');
+
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+            stage1.style.setProperty('--x', mouseX + 'px');
+            stage1.style.setProperty('--y', mouseY + 'px');
+            
+            const CATCH_RADIUS = 35; 
+            const TOUCH_OFFSET = 70; 
+            const fullZone = { minX: 5, maxX: 90, minY: 15, maxY: 80 };
+            const BASE_SPEED = 0.25; 
+
+            const heartsState = Array.from(heartsElements).map(el => {
+                const id = el.getAttribute('data-id');
+                let startX, startY, distToCenter;
+                do {
+                    startX = Math.random() * (fullZone.maxX - fullZone.minX) + fullZone.minX;
+                    startY = Math.random() * (fullZone.maxY - fullZone.minY) + fullZone.minY;
+                    distToCenter = Math.hypot(startX - 50, startY - 50); 
+                } while (distToCenter < 25); 
+
+                return {
+                    id: id,
+                    el: el,
+                    emoji: gombalan[id].emoji,
+                    x: startX,
+                    y: startY,
+                    vx: (Math.random() > 0.5 ? 1 : -1) * BASE_SPEED,
+                    vy: (Math.random() > 0.5 ? 1 : -1) * BASE_SPEED,
+                    zone: fullZone,
+                    isHighlighted: false,
+                    escapeTimer: null,
+                    isFound: false
+                };
+            });
+
+            function updateFlashlight(e) {
+                if (e.type.includes('touch')) {
+                    mouseX = e.touches[0].clientX;
+                    mouseY = e.touches[0].clientY - TOUCH_OFFSET; 
+                } else {
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
+                stage1.style.setProperty('--x', mouseX + 'px');
+                stage1.style.setProperty('--y', mouseY + 'px');
+            }
+
+            stage1.addEventListener('mousemove', updateFlashlight);
+            stage1.addEventListener('touchmove', updateFlashlight, {passive: true});
+
+            function dashAway(h, threatX, threatY) {
+                h.isHighlighted = false;
+                h.el.classList.remove('highlight-green');
+                clearTimeout(h.escapeTimer);
+
+                const rect = h.el.getBoundingClientRect();
+                const hX = rect.left + rect.width / 2;
+                const hY = rect.top + rect.height / 2;
+
+                let dx = hX - threatX;
+                let dy = hY - threatY;
+                let dist = Math.hypot(dx, dy);
+
+                if (dist === 0) {
+                    dx = Math.random() - 0.5;
+                    dy = Math.random() - 0.5;
+                    dist = Math.hypot(dx, dy);
+                }
+
+                const burstStrength = 4.5; 
+                h.vx = (dx / dist) * burstStrength;
+                h.vy = (dy / dist) * burstStrength;
+            }
+
+            let animationFrameId;
+            function gameLoop() {
+                if (currentStageIdx !== 1) return; 
+                if (heartsFound === 3) return;
+
+                let anyHighlighted = false;
+                let minDistance = Infinity; 
+
+                heartsState.forEach(h => {
+                    if (h.isFound) return;
+
+                    let currentSpeed = Math.hypot(h.vx, h.vy);
+                    
+                    if (currentSpeed > BASE_SPEED * 1.5) {
+                        h.vx *= 0.94; 
+                        h.vy *= 0.94;
+                    } else if (currentSpeed < BASE_SPEED * 0.5) {
+                        h.vx *= 1.1;
+                        h.vy *= 1.1;
+                    }
+
+                    h.x += h.vx;
+                    h.y += h.vy;
+
+                    if (h.x <= h.zone.minX) { h.x = h.zone.minX; h.vx = Math.abs(h.vx); }
+                    if (h.x >= h.zone.maxX) { h.x = h.zone.maxX; h.vx = -Math.abs(h.vx); }
+                    if (h.y <= h.zone.minY) { h.y = h.zone.minY; h.vy = Math.abs(h.vy); }
+                    if (h.y >= h.zone.maxY) { h.y = h.zone.maxY; h.vy = -Math.abs(h.vy); }
+
+                    h.el.style.left = h.x + '%';
+                    h.el.style.top = h.y + '%';
+
+                    const rect = h.el.getBoundingClientRect();
+                    const hX = rect.left + rect.width / 2;
+                    const hY = rect.top + rect.height / 2;
+                    
+                    const distToCrosshair = Math.hypot(hX - mouseX, hY - mouseY);
+
+                    if (distToCrosshair < minDistance) {
+                        minDistance = distToCrosshair;
+                    }
+
+                    if (distToCrosshair <= CATCH_RADIUS && !isModalOpen) {
+                        if (!h.isHighlighted) {
+                            h.isHighlighted = true;
+                            h.el.classList.add('highlight-green');
+                            
+                            h.escapeTimer = setTimeout(() => {
+                                dashAway(h, mouseX, mouseY);
+                            }, 700); 
+                        }
+                        anyHighlighted = true;
+                    } else {
+                        if (h.isHighlighted) {
+                            h.isHighlighted = false;
+                            h.el.classList.remove('highlight-green');
+                            clearTimeout(h.escapeTimer);
+                        }
+                    }
+                });
+
+                let radarDots = "";
+                if (minDistance <= 50) radarDots = "••••"; 
+                else if (minDistance <= 120) radarDots = "•••"; 
+                else if (minDistance <= 200) radarDots = "••";  
+                else if (minDistance <= 300) radarDots = "•";   
+
+                if (radarDots !== "" && !isModalOpen) {
+                    radarIndicator.innerText = radarDots;
+                    radarIndicator.style.opacity = '1';
+                } else {
+                    radarIndicator.style.opacity = '0';
+                }
+
+                if (anyHighlighted && !isModalOpen) {
+                    catchWarning.style.opacity = '1';
+                    catchWarning.classList.add('animate-pulse');
+                    crosshair.style.textShadow = "0 0 15px rgba(251, 113, 133, 1)";
+                    crosshair.style.transform = "translate(-50%, -50%) scale(1.3)";
+                } else {
+                    catchWarning.style.opacity = '0';
+                    catchWarning.classList.remove('animate-pulse');
+                    crosshair.style.textShadow = "0 0 5px rgba(239, 68, 68, 0.5)";
+                    crosshair.style.transform = "translate(-50%, -50%) scale(1)";
+                }
+
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            gameLoop();
+
+            function handleCatch(hState) {
+                if(isModalOpen) return; 
+                isModalOpen = true;
+
+                hState.isFound = true;
+                clearTimeout(hState.escapeTimer);
+                hState.el.style.display = 'none'; 
+                
+                const badge = document.createElement('span');
+                badge.className = 'text-lg heart-badge drop-shadow-md';
+                badge.innerHTML = hState.emoji;
+                indicator.appendChild(badge);
+
+                modalEmoji.innerText = hState.emoji;
+                modalText.innerText = gombalan[hState.id].text;
+                modal.classList.add('show');
+                
+                heartsFound++;
+                if(heartsFound === 1) instruction.style.opacity = '0'; 
+            }
+
+            function handleInteraction(e) {
+                if (e.target.closest('.modal-overlay') || e.target.closest('button') || e.target.id === 'debugSkip') return;
+                
+                if (e.cancelable) e.preventDefault(); 
+                
+                let tx, ty;
+                if (e.type.includes('touch')) {
+                    tx = e.touches[0].clientX;
+                    ty = e.touches[0].clientY - TOUCH_OFFSET; 
+                } else {
+                    tx = e.clientX;
+                    ty = e.clientY;
+                }
+
+                heartsState.forEach(h => {
+                    if (h.isFound) return;
+
+                    const rect = h.el.getBoundingClientRect();
+                    const hX = rect.left + rect.width / 2;
+                    const hY = rect.top + rect.height / 2;
+                    const hitDist = Math.hypot(tx - hX, ty - hY);
+
+                    if (hitDist <= CATCH_RADIUS && h.isHighlighted) { 
+                        handleCatch(h);
+                    } else if (hitDist <= 120) { 
+                        dashAway(h, tx, ty);
+                    }
+                });
+            }
+
+            stage1.addEventListener('mousedown', handleInteraction);
+            stage1.addEventListener('touchstart', handleInteraction, {passive: false});
+
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('show');
+                isModalOpen = false; 
+                
+                if (heartsFound === 3) {
+                    cancelAnimationFrame(animationFrameId);
+                    catchWarning.style.display = 'none'; 
+                    instruction.style.opacity = '0'; 
+                    crosshair.style.opacity = '0'; 
+                    radarIndicator.style.opacity = '0'; 
+                    
+                    setTimeout(() => {
+                        successModal.classList.add('show');
+                    }, 400);
+                }
+            });
+
+            goToStage2Btn.addEventListener('click', () => {
+                successModal.classList.remove('show');
+                setTimeout(() => { showStage('stage2'); }, 300);
+            });
+        }
+
+        // ==========================================
+        // STAGE 2: ELIMINASI KADO
+        // ==========================================
+        let isStage2Init = false;
+        function initStage2() {
+            if(isStage2Init) return; 
+            isStage2Init = true;
+
+            let prizesPool = [...fakePrizes].sort(() => Math.random() - 0.5);
+            let eliminatedCount = 0;
+            const totalToEliminate = 5;
+            
+            const giftContainer = document.getElementById('giftContainer');
+            const boxes = document.querySelectorAll('.gift-box');
+            const prizeModal = document.getElementById('prizeModal');
+            const prizeEmoji = document.getElementById('prizeEmoji');
+            const prizeTitle = document.getElementById('prizeTitle');
+            const prizeText = document.getElementById('prizeText');
+            const closePrizeBtn = document.getElementById('closePrizeBtn');
+            const modalContent = document.getElementById('prizeModalContent');
+            const scrollHint = document.getElementById('scrollHint');
+            const hugModal = document.getElementById('hugModal'); 
+            const goToStage3Btn = document.getElementById('goToStage3Btn');
+
+            const stage2Title = document.getElementById('stage2Title');
+            const stage2Desc = document.getElementById('stage2Desc');
+
+            let isGameFinished = false;
+
+            setTimeout(() => {
+                giftContainer.scrollBy({ top: 150, behavior: 'smooth' });
+                setTimeout(() => {
+                    giftContainer.scrollBy({ top: -150, behavior: 'smooth' });
+                }, 600);
+            }, 800);
+
+            giftContainer.addEventListener('scroll', () => {
+                scrollHint.style.opacity = '0';
+            }, { once: true });
+
+            boxes.forEach(box => {
+                box.className = 'gift-box';
+                box.innerHTML = '🎁';
+                
+                box.addEventListener('click', function() {
+                    if (this.classList.contains('eliminated') || isGameFinished) return;
+
+                    scrollHint.style.opacity = '0'; 
+
+                    if (eliminatedCount < totalToEliminate) {
+                        const currentPrize = prizesPool.pop();
+                        
+                        this.classList.add('eliminated');
+                        this.innerHTML = '❌';
+
+                        prizeEmoji.innerHTML = currentPrize.emoji;
+                        // [UBAH DI SINI] Judul pas kado (zonk) kebuang
+                        prizeTitle.innerHTML = 'Hadiah Terbuang!';
+                        prizeTitle.className = 'text-3xl handwriting text-gray-400 mb-2 drop-shadow-sm';
+                        // [UBAH DI SINI] Teks pas kado zonk. "currentPrize.item" dan "currentPrize.desc" bakal ngambil dari array fakePrizes di atas
+                        prizeText.innerHTML = `Kamu baru aja membuang <span class="font-bold text-rose-400">${currentPrize.item}</span>.<br><br><span class="text-xs text-rose-200/50 italic">"${currentPrize.desc}"</span>`;
+                        
+                        // [UBAH DI SINI] Teks tombol pas kado zonk kebuang
+                        closePrizeBtn.innerHTML = 'Lanjoott';
+                        closePrizeBtn.className = 'px-8 py-3 bg-rose-900 border border-rose-800 hover:bg-rose-800 text-white rounded-full font-bold transition-colors active:scale-95 shadow-lg w-full';
+                        modalContent.style.borderColor = '#4c0519'; 
+
+                        prizeModal.classList.add('show');
+                        eliminatedCount++;
+
+                        if (eliminatedCount === totalToEliminate) {
+                            // [UBAH DI SINI] Judul pas sisa 1 kado
+                            stage2Title.innerHTML = 'Tersisa 1 Kado!';
+                            stage2Title.classList.replace('text-rose-300', 'text-rose-400');
+                            // [UBAH DI SINI] Deskripsi pas sisa 1 kado
+                            stage2Desc.innerHTML = 'Wah, ini kado takdir kamu. Coba buka sekarang!';
+                            
+                            boxes.forEach(b => {
+                                if (!b.classList.contains('eliminated')) {
+                                    b.classList.add('final-prize');
+                                    setTimeout(() => {
+                                        b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }, 300);
+                                }
+                            });
+                        }
+                    } 
+                    else if (eliminatedCount === totalToEliminate) {
+                        isGameFinished = true;
+                        
+                        this.innerHTML = '❤️';
+                        this.classList.remove('final-prize');
+                        this.style.background = 'rgba(225, 29, 72, 0.4)';
+                        this.style.borderColor = '#fb7185';
+
+                        // [UBAH DI SINI] Emoji pas dapet kado utama
+                        prizeEmoji.innerHTML = '🥰';
+                        // [UBAH DI SINI] Judul pas dapet kado utama
+                        prizeTitle.innerHTML = 'Selamat Sayangku!';
+                        prizeTitle.className = 'text-4xl handwriting text-rose-300 mb-2 drop-shadow-sm';
+                        // [UBAH DI SINI] Pesan menang kado utama
+                        prizeText.innerHTML = `Kamu memenangkan hadiah utama yang tiada duanya:<br><br><span class="text-2xl font-bold text-white mt-4 inline-block drop-shadow-[0_0_10px_rgba(251,113,133,0.6)]">Peluk Cium dari Aku ❤️</span>`;
+                        
+                        // [UBAH DI SINI] Teks tombol pas menang kado utama
+                        closePrizeBtn.innerHTML = 'Mauuu! 👉';
+                        closePrizeBtn.className = 'px-8 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-full font-bold transition-colors active:scale-95 shadow-lg shadow-rose-500/30 w-full tracking-wide';
+                        modalContent.style.borderColor = '#fb7185'; 
+
+                        setTimeout(() => {
+                            prizeModal.classList.add('show');
+                        }, 300);
+                    }
+                });
+            });
+
+            closePrizeBtn.addEventListener('click', () => {
+                prizeModal.classList.remove('show');
+                
+                if (isGameFinished) {
+                    setTimeout(() => {
+                        hugModal.classList.add('show');
+                    }, 400); 
+                }
+            });
+
+            goToStage3Btn.addEventListener('click', () => {
+                hugModal.classList.remove('show');
+                setTimeout(() => { showStage('stage3'); }, 300);
+            });
+        }
+
+        window.onload = () => { initStage1(); };
+    </script>
+</body>
+</html>
